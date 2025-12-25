@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Tarot Stamp",
-    "slug": "tarot-stamp-app",
+    "name": "Tarot User Phone",
+    "slug": "tarot-user-phone-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tarotstamp.app",
+      "bundleIdentifier": "com.tarotuserphone.app",
       "buildNumber": "1.0.0"
     },
     "android": {
@@ -24,7 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a0033"
       },
-      "package": "com.tarotstamp.app",
+      "package": "com.tarotuserphone.app",
       "versionCode": 1,
       "permissions": []
     },
@@ -41,7 +41,7 @@
             "buildToolsVersion": "34.0.0"
           },
           "ios": {
-            "deploymentTarget": "13.4"
+            "deploymentTarget": "15.1"
           }
         }
       ]

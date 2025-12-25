@@ -7,7 +7,7 @@
  * 앱 정보
  */
 export const APP_INFO = {
-  name: 'Tarot Stamp',
+  name: 'Tarot User Phone',
   version: '1.0.0',
   description: '타로 카드 선택 및 스탬프 적립 앱',
 };
@@ -106,7 +106,7 @@ export const ANIMATION_CONFIG = {
  * 저장소 키
  */
 export const STORAGE_KEYS = {
-  customer: 'tarot_customer',
+  customer: 'tarot_user_phone_customer',
   savedPhone: 'saved_phone',
   rememberMe: 'remember_me',
 };

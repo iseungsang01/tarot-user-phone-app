@@ -1,5 +1,5 @@
 {
-  "name": "tarot-stamp-app",
+  "name": "tarot-user-phone-app",
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -31,7 +31,9 @@
     
     "expo-linking": "~5.0.0",
     
-    "react-native-dotenv": "^3.4.9"
+    "react-native-dotenv": "^3.4.9",
+    
+    "expo-build-properties": "~0.8.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
