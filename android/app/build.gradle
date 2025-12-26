@@ -1,0 +1,170 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+/**
+ * 프로젝트 루트 및 경로 설정
+ */
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+
+// 터미널 명령어를 실행하여 결과를 가져오되, 실패시 기본값을 반환하는 함수
+def getCommandOutput(List<String> command, String defaultValue) {
+    try {
+        def process = command.execute(null, rootDir)
+        def output = process.text.trim()
+        return (output == null || output.isEmpty()) ? defaultValue : output
+    } catch (Exception e) {
+        return defaultValue
+    }
+}
+
+/**
+ * React Native Android 설정
+ */
+react {
+    // 1. entryFile: Expo 스크립트로 해결하거나 실패시 기본 index.js 사용
+    def entryFileCommand = ["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"]
+    entryFile = file(getCommandOutput(entryFileCommand, "${projectRoot}/index.js"))
+
+    // 2. reactNativeDir: react-native 패키지 경로
+    def rnDirCommand = ["node", "--print", "require.resolve('react-native/package.json')"]
+    def rnPackageJson = getCommandOutput(rnDirCommand, "${projectRoot}/node_modules/react-native/package.json")
+    reactNativeDir = file(rnPackageJson).getParentFile().getAbsoluteFile()
+
+    // 3. hermesCommand: Hermes 컴파일러 경로
+    hermesCommand = "${reactNativeDir}/sdks/hermesc/%OS-BIN%/hermesc"
+
+    // 4. codegenDir: Codegen 패키지 경로
+    def codegenCommand = ["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"]
+    def codegenJson = getCommandOutput(codegenCommand, "${projectRoot}/node_modules/@react-native/codegen/package.json")
+    codegenDir = file(codegenJson).getParentFile().getAbsoluteFile()
+
+    // 5. cliFile: Expo CLI 경로
+    def cliCommand = ["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"]
+    cliFile = file(getCommandOutput(cliCommand, "${projectRoot}/node_modules/@expo/cli"))
+
+    bundleCommand = "export:embed"
+
+    /* 라이브러리 자동 연결 */
+    autolinkLibrariesWithApp()
+}
+
+/**
+ * 빌드 변수 설정
+ */
+def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: false).toBoolean()
+def jscFlavor = 'org.webkit:android-jsc:+'
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace 'com.tarotstamp.app'
+
+    // C++ 라이브러리 간의 부품 공유(Prefab) 활성화 - Worklets 에러 해결 핵심
+    buildFeatures {
+        prefab true
+    }
+    
+    defaultConfig {
+        applicationId 'com.tarotstamp.app'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+
+        // C++ 빌드 환경 최적화
+        externalNativeBuild {
+            cmake {
+                cppFlags "-O3", "-frtti", "-fexceptions", "-Wall"
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.debug // 실제 배포시 전용 키스토어로 변경 필요
+            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            // 중복되는 네이티브 라이브러리(.so) 충돌 방지 설정
+            pickFirsts += [
+                "**/libc++_shared.so",
+                "**/libfbjni.so",
+                "**/libjsi.so",
+                "**/libreactnativejni.so",
+                "**/libglog.so",
+                "**/libfolly_runtime.so",
+                "**/libhermes.so"
+            ]
+        }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+// 동적 패키징 옵션 적용 (expo-updates 등에서 필요)
+["pickFirsts", "excludes", "merges", "doNotStrip"].each { prop ->
+    def options = (findProperty("android.packagingOptions.$prop") ?: "").split(",")
+    options = options.collect { it.trim() }.findAll { it }
+
+    if (!options.isEmpty()) {
+        options.each {
+            if (prop == "pickFirsts") android.packaging.resources.pickFirsts += it
+            else if (prop == "excludes") android.packaging.resources.excludes += it
+            else if (prop == "merges") android.packaging.resources.merges += it
+            else if (prop == "doNotStrip") android.packaging.jniLibs.keepDebugSymbols += it
+        }
+    }
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+
+    def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true"
+    def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true"
+    def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true"
+
+    if (isGifEnabled) {
+        implementation("com.facebook.fresco:animated-gif:${reactAndroidLibs.versions.fresco.get()}")
+    }
+
+    if (isWebpEnabled) {
+        implementation("com.facebook.fresco:webpsupport:${reactAndroidLibs.versions.fresco.get()}")
+        if (isWebpAnimatedEnabled) {
+            implementation("com.facebook.fresco:animated-webp:${reactAndroidLibs.versions.fresco.get()}")
+        }
+    }
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+}
