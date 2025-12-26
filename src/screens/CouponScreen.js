@@ -8,6 +8,7 @@ import {
   Alert,
   TouchableOpacity,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { GradientBackground } from '../components/GradientBackground';
