@@ -80,3 +80,5 @@ web-build/
 *.log
 *.lock
 .yarn/
+
+android
